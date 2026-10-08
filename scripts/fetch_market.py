@@ -23,7 +23,7 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from catalog import ALIASES, CATS, ITEMS, KIMJANG, KIMJANG_SOURCE  # noqa: E402
+from catalog import ALIASES, CATS, ITEMS, KIMJANG, KIMJANG_SOURCE, SURVEY  # noqa: E402
 from kamis import fetch  # noqa: E402
 
 OUT = HERE.parent / "docs" / "market.json"
@@ -180,6 +180,45 @@ def build_item(c, latest: dt.date):
     }
 
 
+def next_survey_month(key: str, latest: dt.date):
+    """다음에 조사되는 달. 조사 달 정보가 없으면 None"""
+    months = SURVEY.get(key)
+    if not months:
+        return None
+    for k in range(12):
+        m = (latest.month - 1 + k) % 12 + 1
+        if m in months:
+            return m
+    return None
+
+
+def build_upcoming(c, latest: dt.date):
+    """지금 조사되지 않는 품목: 다음 조사 달과, 지난번 그 달 첫 조사 무렵 가격"""
+    nxt = next_survey_month(c["key"], latest)
+    ref = None
+    if nxt:
+        # 다음 조사 달이 이번 달이거나 뒤면 작년 그 달, 앞이면 올해 그 달을 본다
+        year = latest.year - 1 if nxt >= latest.month else latest.year
+        start = dt.date(year, nxt, 1)
+        rows = get(c, start, start + dt.timedelta(days=30))
+        if rows:
+            first = min(ymd(r["exmn_ymd"]) for r in rows)
+            rows = [r for r in rows if ymd(r["exmn_ymd"]) < first + dt.timedelta(days=7)]
+            unit = Counter(unit_key(r) for r in rows).most_common(1)[0][0]
+            vals = [num(r["exmn_dd_prc"]) for r in rows if unit_key(r) == unit and num(r["exmn_dd_prc"])]
+            if vals:
+                price = statistics.median(vals)
+                if unit[0] in ("개", "마리") and (num(unit[1]) or 1) > 1:
+                    price, unit = price / num(unit[1]), (unit[0], "1")
+                ref = {"price": r10(price), "unit": unit_label(unit), "when": first.strftime("%Y-%m")}
+    return {
+        "key": c["key"], "label": c["label"], "cat": c["cat"], "emoji": c["emoji"], "months": c["months"],
+        "pick": c["pick"], "keep": c["keep"],
+        "alias": " ".join(a for a, keys in ALIASES.items() if c["key"] in keys),
+        "next": nxt, "ref": ref,
+    }
+
+
 def grade_of(c, rows):
     """화면에 '○○ 기준'으로 적을 등급. 품종 이름과 같거나 '-' 같은 값은 적지 않는다."""
     if c.get("grd"):
@@ -215,6 +254,7 @@ def build_kimjang(c, latest: dt.date):
     return {
         "key": c["key"], "label": c["label"], "qty": c["qty"], "unit": c["unit"],
         "unitPrice": r10(now), "prevUnitPrice": r10(prev), "yearUnitPrice": r10(year),
+        "next": None if now else next_survey_month(c["key"], latest),
     }
 
 
@@ -242,14 +282,18 @@ def main():
         items = list(ex.map(lambda c: build_item(c, latest), ITEMS))
         kim = list(ex.map(lambda c: build_kimjang(c, latest), KIMJANG))
 
-    skipped = [c["label"] for c, it in zip(ITEMS, items) if it is None]
+    missing = [c for c, it in zip(ITEMS, items) if it is None]
     items = [it for it in items if it]
+    with ThreadPoolExecutor(4) as ex:
+        upcoming = list(ex.map(lambda c: build_upcoming(c, latest), missing))
     for it in items:
         print(f"{it['emoji']} {it['label']:6} {it['unit']:>6} {it['price']:>8,}원  {it['day']}  "
               f"전주 {it['wow'] if it['wow'] is not None else '-':>6}%  "
               f"1년전 {it['yoy'] if it['yoy'] is not None else '-':>6}%  시장 {it['markets']}")
-    if skipped:
-        print("최근 조사 없음(빠짐):", ", ".join(skipped))
+    for u in upcoming:
+        ref = u["ref"]
+        print(f"곧 나와요 {u['emoji']} {u['label']:6} 다음 {u['next']}월  "
+              f"{'지난번 ' + ref['when'] + ' ' + ref['unit'] + ' ' + format(ref['price'], ',') + '원' if ref else '참고 가격 없음'}")
     total = 0
     for k in kim:
         sub = (k["unitPrice"] or 0) * k["qty"]
@@ -269,6 +313,7 @@ def main():
         "source": "KAMIS 농산물유통정보(한국농수산식품유통공사) 일별 소매가격",
         "cats": [{"key": k, "emoji": v} for k, v in CATS.items()],
         "items": items,
+        "upcoming": upcoming,
         "kimjang": {"source": KIMJANG_SOURCE, "base": 20, "items": kim},
     }
     body = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
