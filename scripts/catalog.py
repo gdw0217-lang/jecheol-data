@@ -62,8 +62,11 @@ ITEMS = [
          pick="꼭지가 붙어 있고 주황색이 고른 것", keep="꼭지를 아래로 두고 냉장"),
     dict(key="tangerine", label="감귤", name="감귤", cat="과일", emoji="🍊", months=[11, 12, 1, 2],
          pick="껍질이 얇고 꼭지가 작은 것", keep="서로 닿지 않게 펼쳐서 서늘한 곳에"),
-    dict(key="kiwi", label="참다래", name="참다래", vrty=["01"], cat="과일", emoji="🥝", months=[11, 12, 1],
+    # KAMIS 소매 조사는 뉴질랜드산(그린)만 있다
+    dict(key="kiwi", label="키위", name="참다래", vrty=["02"], cat="과일", emoji="🥝", months=[],
          pick="털이 고르고 상처가 없는 것", keep="단단하면 사과와 같이 두어 후숙한 뒤 냉장"),
+    dict(key="cherry", label="체리", name="체리", cat="과일", emoji="🍒", months=[],
+         pick="꼭지가 초록색이고 알이 단단하며 윤기 나는 것", keep="씻지 않고 밀폐 용기에 담아 냉장"),
     dict(key="peach", label="복숭아", name="복숭아", cat="과일", emoji="🍑", months=[7, 8],
          pick="향이 진하고 꼭지 쪽까지 색이 든 것", keep="상온에 두었다가 먹기 2시간 전에 냉장"),
     dict(key="shine", label="샤인머스켓", name="포도", vrty=["12"], cat="과일", emoji="🍇", months=[8, 9, 10],
@@ -94,6 +97,8 @@ ITEMS = [
          pick="몸통이 투명하고 탄력 있는 것", keep="손질해서 한 번 먹을 만큼씩 냉동"),
     dict(key="clam", label="바지락", name="바지락", cat="수산", emoji="🐚", months=[3, 4, 5],
          pick="입이 꽉 닫혀 있고 두드리면 맑은 소리가 나는 것", keep="소금물에 해감한 뒤 바로 조리"),
+    dict(key="scallop", label="홍가리비", name="가리비", cat="수산", emoji="🐚", months=[11, 12, 1, 2, 3],
+         pick="껍데기가 닫혀 있거나 건드리면 바로 닫히는 것", keep="해감해서 바로 조리, 남으면 쪄서 살만 냉동"),
 ]
 
 # 제철이 따로 없거나(months=[]) 수입품인 일상 장보기 품목
@@ -297,4 +302,21 @@ ALIASES = {
     "호박": ["zucchini"],
     "귤": ["tangerine"],
     "블루베리": ["blueberry"],
+}
+
+# KAMIS 가 소매가격을 조사하는 달 (2025-10 ~ 2026-09 실제 조사 기록 기준).
+# 지금 조사되지 않는 품목은 앱에서 '곧 나와요'로 다음 조사 달과 작년 그때 가격을 보여 준다.
+# 여기 없는 품목은 1년 내내 조사된다.
+SURVEY = {
+    "strawberry": [12, 1, 2, 3, 4, 5],
+    "melon": [3, 4, 5, 6, 7, 8, 9],          # 참외
+    "peach": [7, 8, 9],
+    "persimmon": [10, 11, 12, 1, 2, 3, 4],   # 단감
+    "kiwi": [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8],
+    "gizzardshad": [9, 10, 11],              # 전어
+    "oyster_sea": [10, 11, 12, 1, 2, 3, 4],  # 굴
+    "scallop": [10, 11, 12, 1, 2, 3, 4, 5],
+    "orange": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    "cherry": [1, 2, 3, 5, 6, 7, 8, 9, 10],
+    "kj_mustard": [10, 11, 12, 1],           # 갓 (김장 재료)
 }
