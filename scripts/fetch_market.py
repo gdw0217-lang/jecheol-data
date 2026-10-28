@@ -324,5 +324,22 @@ def main():
         print("저장:", p, f"{p.stat().st_size:,} bytes")
 
 
+def stale_hours() -> float:
+    """docs/market.json 을 마지막으로 만든 지 몇 시간 지났나(없거나 못 읽으면 무한대)."""
+    try:
+        made = json.loads(OUT.read_text(encoding="utf-8"))["generatedAt"]
+        return (dt.datetime.now(KST) - dt.datetime.fromisoformat(made)).total_seconds() / 3600
+    except Exception:
+        return float("inf")
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as e:
+        # KAMIS 서버가 잠깐 안 받는 것(접속 시간 초과 등)은 하루 세 번 중 한 번 거르는 것뿐 —
+        # 이전 시세가 이틀 안이면 실패로 끝내지 않는다(실패 알림 메일이 안 가게). 이틀 넘게 못 받으면 그때 실패.
+        age = stale_hours()
+        if not str(e).startswith("KAMIS 조회 실패") or age > 48:
+            raise
+        print(f"::warning::{e} — 이전 시세 유지({age:.0f}시간 전 갱신)")
